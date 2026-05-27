@@ -32,6 +32,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "ky": "^2.0.2",
     "winterspec": "^0.0.114",
     "zod": "^3.23.8",
     "zustand": "^5.0.13",

@@ -1,12 +1,11 @@
 import { expect, test } from "bun:test"
-import { ULKiCadProxyServer } from "../lib/index"
+import { getTestServer } from "./fixtures/getTestServer"
 
 test("serves the winterspec health endpoint", async () => {
-  const server = new ULKiCadProxyServer()
-  await server.start()
+  const { ky } = await getTestServer()
 
-  const response = await fetch(`${server.url}/health`)
+  const response = await ky.get("health")
 
   expect(response.status).toBe(200)
-  expect(await response.json()).toEqual({ ok: true })
+  expect(await response.json<{ ok: boolean }>()).toEqual({ ok: true })
 })
