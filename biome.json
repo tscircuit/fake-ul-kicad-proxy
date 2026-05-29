@@ -5,6 +5,9 @@
     "indentStyle": "space",
     "indentWidth": 2
   },
+  "files": {
+    "ignore": ["dist/**"]
+  },
   "javascript": {
     "formatter": {
       "semicolons": "asNeeded"
