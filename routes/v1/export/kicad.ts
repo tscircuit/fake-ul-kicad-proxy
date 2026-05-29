@@ -1,7 +1,6 @@
 import { findPartByMpn } from "../../../lib/fake-ul-data"
 import { createKiCadZip } from "../../../lib/kicad-zip"
 import { withRouteSpec } from "../../../lib/middleware/with-winter-spec"
-import { apiError } from "../../../lib/utils"
 import { z } from "zod"
 
 export default withRouteSpec({
@@ -14,14 +13,27 @@ export default withRouteSpec({
 })((req) => {
   const part = findPartByMpn(req.query.mpn)
   if (part == null) {
-    return apiError("No fake part matched the mpn.", 404, "part_not_found")
+    return Response.json(
+      {
+        error: {
+          error_code: "part_not_found",
+          message: "No fake part matched the mpn.",
+        },
+      },
+      { status: 404 },
+    )
   }
 
   if (!part.symbol_available || !part.footprint_available) {
-    return apiError(
-      "The fake part does not have both symbol and footprint assets.",
-      409,
-      "cad_assets_unavailable",
+    return Response.json(
+      {
+        error: {
+          error_code: "cad_assets_unavailable",
+          message:
+            "The fake part does not have both symbol and footprint assets.",
+        },
+      },
+      { status: 409 },
     )
   }
 

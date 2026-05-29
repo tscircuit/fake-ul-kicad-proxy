@@ -3,7 +3,6 @@ import {
   supportedExportFormats,
 } from "../../../lib/fake-ul-data"
 import { withRouteSpec } from "../../../lib/middleware/with-winter-spec"
-import { apiError } from "../../../lib/utils"
 import { z } from "zod"
 
 export default withRouteSpec({
@@ -27,7 +26,15 @@ export default withRouteSpec({
 })((req, ctx) => {
   const part = findPartByUid(req.query.uid)
   if (part == null) {
-    return apiError("No fake part matched the uid.", 404, "part_not_found")
+    return Response.json(
+      {
+        error: {
+          error_code: "part_not_found",
+          message: "No fake part matched the uid.",
+        },
+      },
+      { status: 404 },
+    )
   }
 
   if (!part.symbol_available || !part.footprint_available) {

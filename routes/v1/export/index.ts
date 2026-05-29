@@ -4,7 +4,6 @@ import {
   supportedExportFormats,
 } from "../../../lib/fake-ul-data"
 import { withRouteSpec } from "../../../lib/middleware/with-winter-spec"
-import { apiError } from "../../../lib/utils"
 import { z } from "zod"
 
 const exportRequest = z.object({
@@ -37,21 +36,42 @@ export default withRouteSpec({
       : findPartByMpn(req.jsonBody.mpn ?? "")
 
   if (part == null) {
-    return apiError("No fake part matched the request.", 404, "part_not_found")
+    return Response.json(
+      {
+        error: {
+          error_code: "part_not_found",
+          message: "No fake part matched the request.",
+        },
+      },
+      { status: 404 },
+    )
   }
 
   if (!part.symbol_available || !part.footprint_available) {
-    return apiError(
-      "The fake part does not have both symbol and footprint assets.",
-      409,
-      "cad_assets_unavailable",
+    return Response.json(
+      {
+        error: {
+          error_code: "cad_assets_unavailable",
+          message:
+            "The fake part does not have both symbol and footprint assets.",
+        },
+      },
+      { status: 409 },
     )
   }
 
   if (
     !supportedExportFormats.some((format) => format.id === req.jsonBody.format)
   ) {
-    return apiError("Only KiCad fake exports exist.", 400, "unsupported_format")
+    return Response.json(
+      {
+        error: {
+          error_code: "unsupported_format",
+          message: "Only KiCad fake exports exist.",
+        },
+      },
+      { status: 400 },
+    )
   }
 
   const url = new URL(req.url)

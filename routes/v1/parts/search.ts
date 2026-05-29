@@ -1,6 +1,5 @@
 import { fakeParts } from "../../../lib/fake-ul-data"
 import { withRouteSpec } from "../../../lib/middleware/with-winter-spec"
-import { apiError } from "../../../lib/utils"
 import { z } from "zod"
 
 const partResponse = z.object({
@@ -41,7 +40,15 @@ export default withRouteSpec({
     .slice(0, req.query.limit)
 
   if (parts.length === 0) {
-    return apiError("No fake part matched the query.", 404, "part_not_found")
+    return Response.json(
+      {
+        error: {
+          error_code: "part_not_found",
+          message: "No fake part matched the query.",
+        },
+      },
+      { status: 404 },
+    )
   }
 
   return ctx.json({
