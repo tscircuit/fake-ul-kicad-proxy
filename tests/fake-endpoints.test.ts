@@ -1,0 +1,91 @@
+import { expect, test } from "bun:test"
+import { getTestServer } from "./fixtures/getTestServer"
+
+const auth = {
+  authorization: "Bearer test-token",
+}
+
+test("searches fake parts by exact mpn", async () => {
+  const { ky } = await getTestServer()
+
+  const response = await ky.get("v1/parts/search", {
+    headers: auth,
+    searchParams: { q: "LM358", exact_only: "true", limit: "1" },
+  })
+  const body = await response.json<{
+    count: number
+    parts: Array<{ uid: string; mpn: string; symbol_available: boolean }>
+  }>()
+
+  expect(response.status).toBe(200)
+  expect(body.count).toBe(1)
+  expect(body.parts[0]).toMatchObject({
+    uid: "fake-generated-lm358",
+    mpn: "LM358",
+    symbol_available: true,
+  })
+})
+
+test("lists export formats for parts with CAD assets", async () => {
+  const { ky } = await getTestServer()
+
+  const response = await ky.get("v1/export/formats", {
+    headers: auth,
+    searchParams: { uid: "fake-generated-lm358" },
+  })
+  const body = await response.json<{
+    formats: Array<{ id: string; cad_tool: string }>
+  }>()
+
+  expect(response.status).toBe(200)
+  expect(body.formats).toContainEqual(
+    expect.objectContaining({ id: "kicad_v6", cad_tool: "KiCAD" }),
+  )
+})
+
+test("creates a fake export response", async () => {
+  const { ky } = await getTestServer()
+
+  const response = await ky.post("v1/export", {
+    headers: auth,
+    json: { uid: "fake-generated-lm358", format: "kicad_v6" },
+  })
+  const body = await response.json<{
+    status: string
+    uid: string
+    download_url: string
+  }>()
+
+  expect(response.status).toBe(200)
+  expect(body).toMatchObject({ status: "ready", uid: "fake-generated-lm358" })
+  expect(body.download_url).toContain("/v1/export/kicad?mpn=LM358")
+})
+
+test("returns a KiCad zip for export helper", async () => {
+  const { ky } = await getTestServer()
+
+  const response = await ky.get("v1/export/kicad", {
+    headers: auth,
+    searchParams: { mpn: "LM358", version: "6" },
+  })
+  const bytes = new Uint8Array(await response.arrayBuffer())
+
+  expect(response.status).toBe(200)
+  expect(response.headers.get("content-type")).toBe("application/zip")
+  expect([...bytes.slice(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04])
+  expect(new TextDecoder().decode(bytes)).toContain(
+    "Synthetic placeholder generated for tests; not vendor CAD.",
+  )
+  expect(new TextDecoder().decode(bytes)).not.toContain("Package_DIP")
+  expect(new TextDecoder().decode(bytes)).not.toContain("DIP8_300")
+})
+
+test("rejects fake endpoints without a bearer token", async () => {
+  const { ky } = await getTestServer()
+
+  const response = await ky.get("v1/parts/search", {
+    searchParams: { q: "LM358" },
+  })
+
+  expect(response.status).toBe(401)
+})
