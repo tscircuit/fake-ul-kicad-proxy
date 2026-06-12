@@ -1,5 +1,5 @@
-import { findPartByMpn, hasKicadAssets } from "../../../lib/fake-ul-data"
-import { createKiCadZip } from "../../../lib/kicad-zip"
+import { findPartByMpn, hasStepAssets } from "../../../lib/fake-ul-data"
+import { createStepZip } from "../../../lib/kicad-zip"
 import { withRouteSpec } from "../../../lib/middleware/with-winter-spec"
 import { z } from "zod"
 
@@ -8,7 +8,6 @@ export default withRouteSpec({
   auth: "bearerToken",
   queryParams: z.object({
     mpn: z.string().min(1),
-    version: z.enum(["6", "7"]).optional().default("6"),
   }),
 })((req) => {
   const part = findPartByMpn(req.query.mpn)
@@ -24,24 +23,23 @@ export default withRouteSpec({
     )
   }
 
-  if (!hasKicadAssets(part)) {
+  if (!hasStepAssets(part)) {
     return Response.json(
       {
         error: {
           error_code: "cad_assets_unavailable",
-          message:
-            "The fake part does not have both symbol and footprint assets.",
+          message: "The fake part does not have a synthetic STEP asset.",
         },
       },
       { status: 409 },
     )
   }
 
-  const zip = createKiCadZip(part, req.query.version)
+  const zip = createStepZip(part)
 
   return new Response(zip, {
     headers: {
-      "content-disposition": `attachment; filename="${part.mpn}_KiCADv${req.query.version}.zip"`,
+      "content-disposition": `attachment; filename="${part.mpn}_STEP.zip"`,
       "content-type": "application/zip",
     },
   })

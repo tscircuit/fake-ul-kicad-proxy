@@ -37,6 +37,20 @@ Requested MPN: ${part.mpn}
   ])
 }
 
+export function createStepZip(part: FakePart): Uint8Array {
+  const stepFileName = getSyntheticStepFileName(part)
+
+  return zipFiles([
+    {
+      path: stepFileName,
+      data: generateSyntheticStepModel({
+        fileName: stepFileName,
+        requestedMpn: part.mpn,
+      }),
+    },
+  ])
+}
+
 interface SymbolOptions {
   symbolName: string
   footprintName: string
@@ -91,6 +105,32 @@ function generateSyntheticKiCadFootprint(options: FootprintOptions): string {
 ${pads}
 )
 `
+}
+
+function generateSyntheticStepModel(options: {
+  fileName: string
+  requestedMpn: string
+}): string {
+  return `\
+ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('Synthetic placeholder STEP generated for tests; not vendor CAD.'), '2;1');
+FILE_NAME('${options.fileName}', '2026-06-12T00:00:00', ('fake-ul-kicad-proxy'), ('tscircuit'), '', '', '');
+FILE_SCHEMA(('CONFIG_CONTROL_DESIGN'));
+ENDSEC;
+DATA;
+/* Requested MPN: ${options.requestedMpn} */
+ENDSEC;
+END-ISO-10303-21;
+`
+}
+
+function getSyntheticStepFileName(part: FakePart): string {
+  if (part.pin_count === 8 && part.package.includes("through-hole")) {
+    return "DIP8_300.step"
+  }
+
+  return `FAKE_GENERATED_${part.pin_count}PIN.step`
 }
 
 function sanitizeKiCadName(value: string): string {
