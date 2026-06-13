@@ -3,20 +3,28 @@ import type { FakePart } from "./fake-ul-data"
 const textEncoder = new TextEncoder()
 const crcTable = makeCrcTable()
 
+export function createKiCadSymbol(part: FakePart): string {
+  const symbolName = `FAKE_GENERATED_${sanitizeKiCadName(part.mpn)}`
+  const footprintName = part.footprint_available
+    ? getSyntheticFootprintName(part)
+    : undefined
+
+  return generateSyntheticKiCadSymbol({
+    symbolName,
+    footprintName,
+    requestedMpn: part.mpn,
+  })
+}
+
 export function createKiCadZip(part: FakePart, version: string): Uint8Array {
   const root = `KiCADv${version}`
   const timestamp = "20260529T000000"
-  const footprintName = `FAKE_GENERATED_${part.pin_count}PIN_PLACEHOLDER`
-  const symbolName = `FAKE_GENERATED_${sanitizeKiCadName(part.mpn)}`
+  const footprintName = getSyntheticFootprintName(part)
 
   return zipFiles([
     {
       path: `${root}/${timestamp}.kicad_sym`,
-      data: generateSyntheticKiCadSymbol({
-        symbolName,
-        footprintName,
-        requestedMpn: part.mpn,
-      }),
+      data: createKiCadSymbol(part),
     },
     {
       path: `${root}/footprints.pretty/${footprintName}.kicad_mod`,
@@ -39,19 +47,27 @@ Requested MPN: ${part.mpn}
 
 interface SymbolOptions {
   symbolName: string
-  footprintName: string
+  footprintName?: string
   requestedMpn: string
 }
 
 function generateSyntheticKiCadSymbol(options: SymbolOptions): string {
+  const properties = [
+    `    (property "Reference" "U" (at 0 5.08 0))`,
+    `    (property "Value" "${options.symbolName}" (at 0 -5.08 0))`,
+    `    (property "Requested_MPN" "${options.requestedMpn}" (at 0 -7.62 0))`,
+    options.footprintName == null
+      ? null
+      : `    (property "Footprint" "Generated:${options.footprintName}" (at 0 -10.16 0))`,
+    `    (property "Fake_CAD_Notice" "Synthetic placeholder generated for tests; not vendor CAD." (at 0 -12.7 0))`,
+  ]
+    .filter((property) => property != null)
+    .join("\n")
+
   return `\
 (kicad_symbol_lib (version 20211014) (generator fake-ul-kicad-proxy)
   (symbol "${options.symbolName}" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-    (property "Reference" "U" (at 0 5.08 0))
-    (property "Value" "${options.symbolName}" (at 0 -5.08 0))
-    (property "Requested_MPN" "${options.requestedMpn}" (at 0 -7.62 0))
-    (property "Footprint" "Generated:${options.footprintName}" (at 0 -10.16 0))
-    (property "Fake_CAD_Notice" "Synthetic placeholder generated for tests; not vendor CAD." (at 0 -12.7 0))
+${properties}
   )
 )
 `
@@ -91,6 +107,10 @@ function generateSyntheticKiCadFootprint(options: FootprintOptions): string {
 ${pads}
 )
 `
+}
+
+function getSyntheticFootprintName(part: Pick<FakePart, "pin_count">): string {
+  return `FAKE_GENERATED_${part.pin_count}PIN_PLACEHOLDER`
 }
 
 function sanitizeKiCadName(value: string): string {

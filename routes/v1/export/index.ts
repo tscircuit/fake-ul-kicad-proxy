@@ -1,7 +1,7 @@
 import {
+  findExportFormat,
   findPartByMpn,
   findPartByUid,
-  supportedExportFormats,
 } from "../../../lib/fake-ul-data"
 import { withRouteSpec } from "../../../lib/middleware/with-winter-spec"
 import { z } from "zod"
@@ -34,6 +34,7 @@ export default withRouteSpec({
     req.jsonBody.uid != null
       ? findPartByUid(req.jsonBody.uid)
       : findPartByMpn(req.jsonBody.mpn ?? "")
+  const format = findExportFormat(req.jsonBody.format)
 
   if (part == null) {
     return Response.json(
@@ -47,22 +48,7 @@ export default withRouteSpec({
     )
   }
 
-  if (!part.symbol_available || !part.footprint_available) {
-    return Response.json(
-      {
-        error: {
-          error_code: "cad_assets_unavailable",
-          message:
-            "The fake part does not have both symbol and footprint assets.",
-        },
-      },
-      { status: 409 },
-    )
-  }
-
-  if (
-    !supportedExportFormats.some((format) => format.id === req.jsonBody.format)
-  ) {
+  if (format == null) {
     return Response.json(
       {
         error: {
@@ -74,18 +60,41 @@ export default withRouteSpec({
     )
   }
 
+  if (
+    (format.requires_symbol && !part.symbol_available) ||
+    (format.requires_footprint && !part.footprint_available)
+  ) {
+    return Response.json(
+      {
+        error: {
+          error_code: "cad_assets_unavailable",
+          message:
+            "The fake part does not have the CAD assets required for this export.",
+        },
+      },
+      { status: 409 },
+    )
+  }
+
   const url = new URL(req.url)
-  url.pathname = "/v1/export/kicad"
-  url.search = new URLSearchParams({
-    mpn: part.mpn,
-    version: req.jsonBody.version,
-  }).toString()
+  url.pathname =
+    format.file_type === "zip" ? "/v1/export/kicad" : "/v1/export/kicad_sym"
+  url.search = new URLSearchParams(
+    format.file_type === "zip"
+      ? {
+          mpn: part.mpn,
+          version: req.jsonBody.version,
+        }
+      : {
+          mpn: part.mpn,
+        },
+  ).toString()
 
   return ctx.json({
     status: "ready",
     uid: part.uid,
     mpn: part.mpn,
-    format: req.jsonBody.format,
+    format: format.id,
     download_url: url.toString(),
   })
 })
