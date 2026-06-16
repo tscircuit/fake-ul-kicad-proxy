@@ -40,7 +40,7 @@ test("lists export formats for parts with CAD assets", async () => {
     searchParams: { uid: "fake-generated-lm358" },
   })
   const body = await response.json<{
-    formats: Array<{ id: string; cad_tool: string }>
+    formats: Array<{ id: string; cad_tool: string; file_type: string }>
   }>()
 
   expect(response.status).toBe(200)
@@ -48,7 +48,11 @@ test("lists export formats for parts with CAD assets", async () => {
     expect.objectContaining({ id: "kicad_v6", cad_tool: "KiCAD" }),
   )
   expect(body.formats).toContainEqual(
-    expect.objectContaining({ id: "step", cad_tool: "STEP" }),
+    expect.objectContaining({
+      id: "step",
+      cad_tool: "STEP",
+      file_type: "zip",
+    }),
   )
 })
 
@@ -124,6 +128,9 @@ test("returns a STEP zip for export helper", async () => {
 
   expect(response.status).toBe(200)
   expect(response.headers.get("content-type")).toBe("application/zip")
+  expect(response.headers.get("content-disposition")).toBe(
+    'attachment; filename="LM358_STEP.zip"',
+  )
   expect([...bytes.slice(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04])
   expect(decoded).toContain("ISO-10303-21")
   expect(decoded).toContain("DIP8_300.step")
