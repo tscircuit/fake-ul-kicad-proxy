@@ -4,6 +4,7 @@ import {
   isFormatAvailableForPart,
   isSupportedExportFormatId,
 } from "../../../lib/fake-ul-data"
+import { createStepZip } from "../../../lib/kicad-zip"
 import { withRouteSpec } from "../../../lib/middleware/with-winter-spec"
 import { z } from "zod"
 
@@ -24,14 +25,7 @@ export default withRouteSpec({
       message: "Either uid or mpn is required.",
     },
   ),
-  jsonResponse: z.object({
-    status: z.literal("ready"),
-    uid: z.string(),
-    mpn: z.string(),
-    format: z.string(),
-    download_url: z.string(),
-  }),
-})((req, ctx) => {
+})((req) => {
   const formatId = getRequestedFormatId(req.jsonBody)
   const part =
     req.jsonBody.uid != null
@@ -77,20 +71,25 @@ export default withRouteSpec({
     )
   }
 
-  const url = new URL(req.url)
-  url.pathname = formatId === "step" ? "/v1/export/step" : "/v1/export/kicad"
-  url.search = new URLSearchParams(
-    formatId === "step"
-      ? {
-          mpn: part.mpn,
-        }
-      : {
-          mpn: part.mpn,
-          version: req.jsonBody.version,
-        },
-  ).toString()
+  if (formatId === "step") {
+    const zip = createStepZip(part)
 
-  return ctx.json({
+    return new Response(zip, {
+      headers: {
+        "content-disposition": `attachment; filename="${part.mpn}_STEP.zip"`,
+        "content-type": "application/zip",
+      },
+    })
+  }
+
+  const url = new URL(req.url)
+  url.pathname = "/v1/export/kicad"
+  url.search = new URLSearchParams({
+    mpn: part.mpn,
+    version: req.jsonBody.version,
+  }).toString()
+
+  return Response.json({
     status: "ready",
     uid: part.uid,
     mpn: part.mpn,
