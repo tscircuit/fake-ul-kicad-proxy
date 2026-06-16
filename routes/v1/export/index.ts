@@ -32,7 +32,6 @@ export default withRouteSpec({
     req.jsonBody.uid != null
       ? findPartByUid(req.jsonBody.uid)
       : findPartByMpn(req.jsonBody.mpn ?? "")
-  const format = findExportFormat(req.jsonBody.format)
 
   if (part == null) {
     return Response.json(
@@ -47,13 +46,11 @@ export default withRouteSpec({
   }
 
   if (!isSupportedExportFormatId(formatId)) {
-  if (format == null) {
     return Response.json(
       {
         error: {
           error_code: "unsupported_format",
           message: "The requested fake export format is not supported.",
-          message: "Only KiCad fake exports exist.",
         },
       },
       { status: 400 },
@@ -61,22 +58,27 @@ export default withRouteSpec({
   }
 
   if (!isFormatAvailableForPart(part, formatId)) {
-  if (
-    (format.requires_symbol && !part.symbol_available) ||
-    (format.requires_footprint && !part.footprint_available)
-  ) {
     return Response.json(
       {
         error: {
           error_code: "cad_assets_unavailable",
-          message:
-            formatId === "step"
-              ? "The fake part does not have a synthetic STEP asset."
-              : "The fake part does not have both symbol and footprint assets.",
-            "The fake part does not have the CAD assets required for this export.",
+          message: getUnavailableAssetMessage(formatId),
         },
       },
       { status: 409 },
+    )
+  }
+
+  const format = findExportFormat(formatId)
+  if (format == null) {
+    return Response.json(
+      {
+        error: {
+          error_code: "unsupported_format",
+          message: "The requested fake export format is not supported.",
+        },
+      },
+      { status: 400 },
     )
   }
 
@@ -109,7 +111,6 @@ export default withRouteSpec({
     status: "ready",
     uid: part.uid,
     mpn: part.mpn,
-    format: formatId,
     format: format.id,
     download_url: url.toString(),
   })
@@ -125,4 +126,16 @@ function getRequestedFormatId(body: z.infer<typeof exportRequest>) {
   }
 
   return body.version === "7" ? "kicad_v7" : "kicad_v6"
+}
+
+function getUnavailableAssetMessage(formatId: string) {
+  if (formatId === "step") {
+    return "The fake part does not have a synthetic STEP asset."
+  }
+
+  if (formatId === "kicad_sym") {
+    return "The fake part does not have a symbol asset."
+  }
+
+  return "The fake part does not have both symbol and footprint assets."
 }

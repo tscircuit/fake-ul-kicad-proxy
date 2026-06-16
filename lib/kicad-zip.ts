@@ -230,6 +230,8 @@ function getSyntheticStepFileName(part: FakePart): string {
   }
 
   return `FAKE_GENERATED_${part.pin_count}PIN.step`
+}
+
 function getSyntheticFootprintName(part: Pick<FakePart, "pin_count">): string {
   return `FAKE_GENERATED_${part.pin_count}PIN_PLACEHOLDER`
 }

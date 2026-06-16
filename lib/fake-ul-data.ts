@@ -18,6 +18,7 @@ export interface FakeExportFormat {
   file_type: string
   requires_symbol: boolean
   requires_footprint: boolean
+  requires_threed: boolean
 }
 
 export const fakeParts: FakePart[] = [
@@ -65,6 +66,7 @@ export const supportedExportFormats: FakeExportFormat[] = [
     file_type: "zip",
     requires_symbol: true,
     requires_footprint: true,
+    requires_threed: false,
   },
   {
     id: "kicad_v7",
@@ -74,6 +76,7 @@ export const supportedExportFormats: FakeExportFormat[] = [
     file_type: "zip",
     requires_symbol: true,
     requires_footprint: true,
+    requires_threed: false,
   },
   {
     id: "kicad_sym",
@@ -83,6 +86,7 @@ export const supportedExportFormats: FakeExportFormat[] = [
     file_type: "kicad_sym",
     requires_symbol: true,
     requires_footprint: false,
+    requires_threed: false,
   },
   {
     id: "step",
@@ -90,6 +94,9 @@ export const supportedExportFormats: FakeExportFormat[] = [
     cad_tool: "STEP",
     version: "AP214",
     file_type: "zip",
+    requires_symbol: false,
+    requires_footprint: false,
+    requires_threed: true,
   },
 ]
 
@@ -100,6 +107,10 @@ export function getAvailableExportFormats(part: FakePart): FakeExportFormat[] {
     }
 
     if (format.requires_footprint && !part.footprint_available) {
+      return false
+    }
+
+    if (format.requires_threed && !part.threed_available) {
       return false
     }
 
@@ -128,22 +139,33 @@ export function hasStepAssets(part: FakePart): boolean {
 }
 
 export function isSupportedExportFormatId(formatId: string): boolean {
-  return supportedExportFormats.some((format) => format.id === formatId)
+  return findExportFormat(formatId) != null
 }
 
 export function isFormatAvailableForPart(
   part: FakePart,
   formatId: string,
 ): boolean {
-  if (formatId === "step") return hasStepAssets(part)
-  if (formatId.startsWith("kicad_")) return hasKicadAssets(part)
-  return false
+  const format = findExportFormat(formatId)
+  if (format == null) return false
+
+  if (format.requires_symbol && !part.symbol_available) {
+    return false
+  }
+
+  if (format.requires_footprint && !part.footprint_available) {
+    return false
+  }
+
+  if (format.requires_threed && !part.threed_available) {
+    return false
+  }
+
+  return true
 }
 
 export function getSupportedExportFormatsForPart(
   part: FakePart,
 ): FakeExportFormat[] {
-  return supportedExportFormats.filter((format) =>
-    isFormatAvailableForPart(part, format.id),
-  )
+  return getAvailableExportFormats(part)
 }

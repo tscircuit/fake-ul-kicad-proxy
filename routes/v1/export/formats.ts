@@ -1,5 +1,4 @@
 import {
-  getAvailableExportFormats,
   findPartByUid,
   getSupportedExportFormatsForPart,
 } from "../../../lib/fake-ul-data"
@@ -42,5 +41,4 @@ export default withRouteSpec({
     uid: part.uid,
     formats: getSupportedExportFormatsForPart(part),
   })
-  return ctx.json({ uid: part.uid, formats: getAvailableExportFormats(part) })
 })

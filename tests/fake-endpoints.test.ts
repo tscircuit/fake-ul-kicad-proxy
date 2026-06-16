@@ -54,6 +54,7 @@ test("lists export formats for parts with CAD assets", async () => {
       file_type: "zip",
     }),
   )
+  expect(body.formats).toContainEqual(
     expect.objectContaining({ id: "kicad_sym", file_type: "kicad_sym" }),
   )
 })
@@ -92,7 +93,6 @@ test("creates a fake export response", async () => {
 })
 
 test("creates a fake STEP export response", async () => {
-test("creates a schematic symbol export response", async () => {
   const { ky } = await getTestServer()
 
   const response = await ky.post("v1/export", {
@@ -111,6 +111,13 @@ test("creates a schematic symbol export response", async () => {
   expect(decoded).toContain("ISO-10303-21")
   expect(decoded).toContain("DIP8_300.step")
   expect(decoded).toContain("Requested MPN: LM358")
+})
+
+test("creates a schematic symbol export response", async () => {
+  const { ky } = await getTestServer()
+
+  const response = await ky.post("v1/export", {
+    headers: auth,
     json: { uid: "fake-generated-tps5430", format: "kicad_sym" },
   })
   const body = await response.json<{
@@ -157,6 +164,8 @@ test("does not expose a fake STEP helper route", async () => {
   })
 
   expect(response.status).toBe(404)
+})
+
 test("returns a KiCad schematic symbol file for symbol helper", async () => {
   const { ky } = await getTestServer()
 
