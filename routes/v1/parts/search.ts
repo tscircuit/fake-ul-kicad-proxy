@@ -9,6 +9,7 @@ const partResponse = z.object({
   description: z.string(),
   symbol_available: z.boolean(),
   footprint_available: z.boolean(),
+  threed_available: z.boolean(),
   package: z.string(),
 })
 

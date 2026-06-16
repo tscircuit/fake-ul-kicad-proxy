@@ -1,6 +1,6 @@
 import {
-  getAvailableExportFormats,
   findPartByUid,
+  getSupportedExportFormatsForPart,
 } from "../../../lib/fake-ul-data"
 import { withRouteSpec } from "../../../lib/middleware/with-winter-spec"
 import { z } from "zod"
@@ -37,5 +37,8 @@ export default withRouteSpec({
     )
   }
 
-  return ctx.json({ uid: part.uid, formats: getAvailableExportFormats(part) })
+  return ctx.json({
+    uid: part.uid,
+    formats: getSupportedExportFormatsForPart(part),
+  })
 })

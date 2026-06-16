@@ -5,6 +5,7 @@ export interface FakePart {
   description: string
   symbol_available: boolean
   footprint_available: boolean
+  threed_available: boolean
   package: string
   pin_count: number
 }
@@ -17,6 +18,7 @@ export interface FakeExportFormat {
   file_type: string
   requires_symbol: boolean
   requires_footprint: boolean
+  requires_threed: boolean
 }
 
 export const fakeParts: FakePart[] = [
@@ -27,6 +29,7 @@ export const fakeParts: FakePart[] = [
     description: "Generated test record for a dual op amp style part",
     symbol_available: true,
     footprint_available: true,
+    threed_available: true,
     package: "generated-through-hole-8",
     pin_count: 8,
   },
@@ -37,6 +40,7 @@ export const fakeParts: FakePart[] = [
     description: "Generated test record for a timer style part",
     symbol_available: true,
     footprint_available: true,
+    threed_available: true,
     package: "generated-through-hole-8",
     pin_count: 8,
   },
@@ -47,6 +51,7 @@ export const fakeParts: FakePart[] = [
     description: "Generated test record for a regulator style part",
     symbol_available: true,
     footprint_available: false,
+    threed_available: false,
     package: "generated-surface-mount-8",
     pin_count: 8,
   },
@@ -61,6 +66,7 @@ export const supportedExportFormats: FakeExportFormat[] = [
     file_type: "zip",
     requires_symbol: true,
     requires_footprint: true,
+    requires_threed: false,
   },
   {
     id: "kicad_v7",
@@ -70,6 +76,7 @@ export const supportedExportFormats: FakeExportFormat[] = [
     file_type: "zip",
     requires_symbol: true,
     requires_footprint: true,
+    requires_threed: false,
   },
   {
     id: "kicad_sym",
@@ -79,6 +86,17 @@ export const supportedExportFormats: FakeExportFormat[] = [
     file_type: "kicad_sym",
     requires_symbol: true,
     requires_footprint: false,
+    requires_threed: false,
+  },
+  {
+    id: "step",
+    name: "STEP",
+    cad_tool: "STEP",
+    version: "AP214",
+    file_type: "zip",
+    requires_symbol: false,
+    requires_footprint: false,
+    requires_threed: true,
   },
 ]
 
@@ -89,6 +107,10 @@ export function getAvailableExportFormats(part: FakePart): FakeExportFormat[] {
     }
 
     if (format.requires_footprint && !part.footprint_available) {
+      return false
+    }
+
+    if (format.requires_threed && !part.threed_available) {
       return false
     }
 
@@ -106,4 +128,44 @@ export function findPartByUid(uid: string): FakePart | undefined {
 
 export function findPartByMpn(mpn: string): FakePart | undefined {
   return fakeParts.find((part) => part.mpn.toLowerCase() === mpn.toLowerCase())
+}
+
+export function hasKicadAssets(part: FakePart): boolean {
+  return part.symbol_available && part.footprint_available
+}
+
+export function hasStepAssets(part: FakePart): boolean {
+  return part.threed_available
+}
+
+export function isSupportedExportFormatId(formatId: string): boolean {
+  return findExportFormat(formatId) != null
+}
+
+export function isFormatAvailableForPart(
+  part: FakePart,
+  formatId: string,
+): boolean {
+  const format = findExportFormat(formatId)
+  if (format == null) return false
+
+  if (format.requires_symbol && !part.symbol_available) {
+    return false
+  }
+
+  if (format.requires_footprint && !part.footprint_available) {
+    return false
+  }
+
+  if (format.requires_threed && !part.threed_available) {
+    return false
+  }
+
+  return true
+}
+
+export function getSupportedExportFormatsForPart(
+  part: FakePart,
+): FakeExportFormat[] {
+  return getAvailableExportFormats(part)
 }

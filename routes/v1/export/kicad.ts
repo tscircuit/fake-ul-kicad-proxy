@@ -1,4 +1,4 @@
-import { findPartByMpn } from "../../../lib/fake-ul-data"
+import { findPartByMpn, hasKicadAssets } from "../../../lib/fake-ul-data"
 import { createKiCadZip } from "../../../lib/kicad-zip"
 import { withRouteSpec } from "../../../lib/middleware/with-winter-spec"
 import { z } from "zod"
@@ -24,7 +24,7 @@ export default withRouteSpec({
     )
   }
 
-  if (!part.symbol_available || !part.footprint_available) {
+  if (!hasKicadAssets(part)) {
     return Response.json(
       {
         error: {
