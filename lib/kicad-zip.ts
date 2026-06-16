@@ -10,6 +10,7 @@ export function createKiCadSymbol(part: FakePart): string {
     : undefined
 
   return generateSyntheticKiCadSymbol({
+    pinCount: part.pin_count,
     symbolName,
     footprintName,
     requestedMpn: part.mpn,
@@ -46,20 +47,37 @@ Requested MPN: ${part.mpn}
 }
 
 interface SymbolOptions {
+  pinCount: number
   symbolName: string
   footprintName?: string
   requestedMpn: string
 }
 
 function generateSyntheticKiCadSymbol(options: SymbolOptions): string {
+  const body = getSyntheticSymbolBody(options.pinCount)
+  const pins = generateSyntheticSymbolPins(options.pinCount)
+  const bodyPrimitives = [
+    `    (symbol "${options.symbolName}_0_1"`,
+    `      (rectangle (start ${formatMm(body.left)} ${formatMm(body.top)}) (end ${formatMm(body.right)} ${formatMm(body.bottom)})`,
+    `        (stroke (width 0.254) (type default))`,
+    `        (fill (type background)))`,
+    ...pins.map((pin) => {
+      return `      (pin passive line (at ${formatMm(pin.x)} ${formatMm(pin.y)} ${pin.angle}) (length 2.54)
+        (name "${pin.name}" (effects (font (size 1.27 1.27))))
+        (number "${pin.number}" (effects (font (size 1.27 1.27)))))`
+    }),
+    `    )`,
+  ].join("\n")
+
+  const bottomTextStart = body.bottom - 2.54
   const properties = [
-    `    (property "Reference" "U" (at 0 5.08 0))`,
-    `    (property "Value" "${options.symbolName}" (at 0 -5.08 0))`,
-    `    (property "Requested_MPN" "${options.requestedMpn}" (at 0 -7.62 0))`,
+    `    (property "Reference" "U" (at 0 ${formatMm(body.top + 2.54)} 0))`,
+    `    (property "Value" "${options.symbolName}" (at 0 ${formatMm(bottomTextStart)} 0))`,
+    `    (property "Requested_MPN" "${options.requestedMpn}" (at 0 ${formatMm(bottomTextStart - 2.54)} 0))`,
     options.footprintName == null
       ? null
-      : `    (property "Footprint" "Generated:${options.footprintName}" (at 0 -10.16 0))`,
-    `    (property "Fake_CAD_Notice" "Synthetic placeholder generated for tests; not vendor CAD." (at 0 -12.7 0))`,
+      : `    (property "Footprint" "Generated:${options.footprintName}" (at 0 ${formatMm(bottomTextStart - 5.08)} 0))`,
+    `    (property "Fake_CAD_Notice" "Synthetic placeholder generated for tests; not vendor CAD." (at 0 ${formatMm(bottomTextStart - (options.footprintName == null ? 5.08 : 7.62))} 0))`,
   ]
     .filter((property) => property != null)
     .join("\n")
@@ -68,9 +86,74 @@ function generateSyntheticKiCadSymbol(options: SymbolOptions): string {
 (kicad_symbol_lib (version 20211014) (generator fake-ul-kicad-proxy)
   (symbol "${options.symbolName}" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
 ${properties}
+${bodyPrimitives}
   )
 )
 `
+}
+
+interface SyntheticSymbolPin {
+  angle: number
+  name: string
+  number: number
+  x: number
+  y: number
+}
+
+interface SyntheticSymbolBody {
+  bottom: number
+  left: number
+  right: number
+  top: number
+}
+
+function generateSyntheticSymbolPins(pinCount: number): SyntheticSymbolPin[] {
+  const leftPinCount = Math.ceil(pinCount / 2)
+  const rightPinCount = pinCount - leftPinCount
+  const maxSidePinCount = Math.max(leftPinCount, rightPinCount, 1)
+  const pinSpacing = 2.54
+  const pinRows = Array.from({ length: maxSidePinCount }, (_, index) => {
+    return ((maxSidePinCount - 1) / 2 - index) * pinSpacing
+  })
+
+  const pins: SyntheticSymbolPin[] = []
+
+  for (let index = 0; index < leftPinCount; index++) {
+    pins.push({
+      angle: 0,
+      name: `P${index + 1}`,
+      number: index + 1,
+      x: -7.62,
+      y: pinRows[index] ?? 0,
+    })
+  }
+
+  for (let index = 0; index < rightPinCount; index++) {
+    const pinNumber = leftPinCount + index + 1
+    pins.push({
+      angle: 180,
+      name: `P${pinNumber}`,
+      number: pinNumber,
+      x: 7.62,
+      y: pinRows[index] ?? 0,
+    })
+  }
+
+  return pins
+}
+
+function getSyntheticSymbolBody(pinCount: number): SyntheticSymbolBody {
+  const pins = generateSyntheticSymbolPins(pinCount)
+  const ys = pins.map((pin) => pin.y)
+  const topMostPin = ys.length > 0 ? Math.max(...ys) : 3.81
+  const bottomMostPin = ys.length > 0 ? Math.min(...ys) : -3.81
+
+  return {
+    bottom: bottomMostPin - 1.27,
+    left: -5.08,
+    right: 5.08,
+    top: topMostPin + 1.27,
+  }
 }
 
 interface FootprintOptions {

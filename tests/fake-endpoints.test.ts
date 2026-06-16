@@ -136,6 +136,8 @@ test("returns a KiCad schematic symbol file for symbol helper", async () => {
     'filename="TPS5430.kicad_sym"',
   )
   expect(body).toContain("(kicad_symbol_lib")
+  expect(body).toContain("(rectangle")
+  expect(body).toContain("(pin passive line (at -7.62")
   expect(body).toContain('Requested_MPN" "TPS5430"')
   expect(body).not.toContain('property "Footprint"')
 })
