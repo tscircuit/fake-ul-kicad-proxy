@@ -1,4 +1,5 @@
 import {
+  findExportFormat,
   findPartByMpn,
   findPartByUid,
   isFormatAvailableForPart,
@@ -31,6 +32,7 @@ export default withRouteSpec({
     req.jsonBody.uid != null
       ? findPartByUid(req.jsonBody.uid)
       : findPartByMpn(req.jsonBody.mpn ?? "")
+  const format = findExportFormat(req.jsonBody.format)
 
   if (part == null) {
     return Response.json(
@@ -45,11 +47,13 @@ export default withRouteSpec({
   }
 
   if (!isSupportedExportFormatId(formatId)) {
+  if (format == null) {
     return Response.json(
       {
         error: {
           error_code: "unsupported_format",
           message: "The requested fake export format is not supported.",
+          message: "Only KiCad fake exports exist.",
         },
       },
       { status: 400 },
@@ -57,6 +61,10 @@ export default withRouteSpec({
   }
 
   if (!isFormatAvailableForPart(part, formatId)) {
+  if (
+    (format.requires_symbol && !part.symbol_available) ||
+    (format.requires_footprint && !part.footprint_available)
+  ) {
     return Response.json(
       {
         error: {
@@ -65,6 +73,7 @@ export default withRouteSpec({
             formatId === "step"
               ? "The fake part does not have a synthetic STEP asset."
               : "The fake part does not have both symbol and footprint assets.",
+            "The fake part does not have the CAD assets required for this export.",
         },
       },
       { status: 409 },
@@ -83,17 +92,25 @@ export default withRouteSpec({
   }
 
   const url = new URL(req.url)
-  url.pathname = "/v1/export/kicad"
-  url.search = new URLSearchParams({
-    mpn: part.mpn,
-    version: req.jsonBody.version,
-  }).toString()
+  url.pathname =
+    format.file_type === "zip" ? "/v1/export/kicad" : "/v1/export/kicad_sym"
+  url.search = new URLSearchParams(
+    format.file_type === "zip"
+      ? {
+          mpn: part.mpn,
+          version: req.jsonBody.version,
+        }
+      : {
+          mpn: part.mpn,
+        },
+  ).toString()
 
   return Response.json({
     status: "ready",
     uid: part.uid,
     mpn: part.mpn,
     format: formatId,
+    format: format.id,
     download_url: url.toString(),
   })
 })

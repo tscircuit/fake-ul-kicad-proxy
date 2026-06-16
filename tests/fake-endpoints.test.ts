@@ -54,6 +54,23 @@ test("lists export formats for parts with CAD assets", async () => {
       file_type: "zip",
     }),
   )
+    expect.objectContaining({ id: "kicad_sym", file_type: "kicad_sym" }),
+  )
+})
+
+test("lists schematic-only export formats for symbol-only parts", async () => {
+  const { ky } = await getTestServer()
+
+  const response = await ky.get("v1/export/formats", {
+    headers: auth,
+    searchParams: { uid: "fake-generated-tps5430" },
+  })
+  const body = await response.json<{
+    formats: Array<{ id: string }>
+  }>()
+
+  expect(response.status).toBe(200)
+  expect(body.formats.map((format) => format.id)).toEqual(["kicad_sym"])
 })
 
 test("creates a fake export response", async () => {
@@ -75,6 +92,7 @@ test("creates a fake export response", async () => {
 })
 
 test("creates a fake STEP export response", async () => {
+test("creates a schematic symbol export response", async () => {
   const { ky } = await getTestServer()
 
   const response = await ky.post("v1/export", {
@@ -93,6 +111,22 @@ test("creates a fake STEP export response", async () => {
   expect(decoded).toContain("ISO-10303-21")
   expect(decoded).toContain("DIP8_300.step")
   expect(decoded).toContain("Requested MPN: LM358")
+    json: { uid: "fake-generated-tps5430", format: "kicad_sym" },
+  })
+  const body = await response.json<{
+    status: string
+    uid: string
+    format: string
+    download_url: string
+  }>()
+
+  expect(response.status).toBe(200)
+  expect(body).toMatchObject({
+    status: "ready",
+    uid: "fake-generated-tps5430",
+    format: "kicad_sym",
+  })
+  expect(body.download_url).toContain("/v1/export/kicad_sym?mpn=TPS5430")
 })
 
 test("returns a KiCad zip for export helper", async () => {
@@ -123,6 +157,25 @@ test("does not expose a fake STEP helper route", async () => {
   })
 
   expect(response.status).toBe(404)
+test("returns a KiCad schematic symbol file for symbol helper", async () => {
+  const { ky } = await getTestServer()
+
+  const response = await ky.get("v1/export/kicad_sym", {
+    headers: auth,
+    searchParams: { mpn: "TPS5430" },
+  })
+  const body = await response.text()
+
+  expect(response.status).toBe(200)
+  expect(response.headers.get("content-type")).toBe("text/plain; charset=utf-8")
+  expect(response.headers.get("content-disposition")).toContain(
+    'filename="TPS5430.kicad_sym"',
+  )
+  expect(body).toContain("(kicad_symbol_lib")
+  expect(body).toContain("(rectangle")
+  expect(body).toContain("(pin passive line (at -7.62")
+  expect(body).toContain('Requested_MPN" "TPS5430"')
+  expect(body).not.toContain('property "Footprint"')
 })
 
 test("rejects fake endpoints without a bearer token", async () => {
